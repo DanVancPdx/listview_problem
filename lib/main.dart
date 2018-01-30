@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'imagePicker.dart';
 import 'dart:async';
 
 void main() => runApp(new MaterialApp(home: new ItemsSelect(), theme: new ThemeData(primarySwatch: Colors.green), routes: <String, WidgetBuilder>{}));
@@ -15,11 +14,6 @@ class FruitList {
   String fruitPhotoAsset;
 }
 
-List<String> selectableFruitPhotoAssets;
-List<String> selectableFruitNames;
-
-typedef void BannerPhotoCallback(String photoAsset);
-
 class ItemsSelect extends StatefulWidget {
   ItemsSelect({
     Key key,
@@ -31,8 +25,6 @@ class ItemsSelect extends StatefulWidget {
 
 class ItemsSelectState extends State<ItemsSelect> with RouteAware {
   List<FruitList> fruitsList;
-  List results;
-  final GlobalKey<FormState> _formKey = new GlobalKey<FormState>();
 
   @override
   initState() {
@@ -43,10 +35,6 @@ class ItemsSelectState extends State<ItemsSelect> with RouteAware {
       ),
     ];
     fruitsList.clear();
-
-    selectableFruitPhotoAssets = <String>[" "];
-    selectableFruitNames = <String>[" "];
-
     this.getData();
   }
 
@@ -73,31 +61,36 @@ class ItemsSelectState extends State<ItemsSelect> with RouteAware {
         fruitPhotoAsset: "assets/strawberry.png",
       ));
     });
-
-    selectableFruitPhotoAssets = <String>[" "];
-    selectableFruitPhotoAssets.clear();
-
-    selectableFruitPhotoAssets.add("assets/apple.png");
-    selectableFruitPhotoAssets.add("assets/banana.png");
-    selectableFruitPhotoAssets.add("assets/pear.png");
-    selectableFruitPhotoAssets.add("assets/pineapple.png");
-    selectableFruitPhotoAssets.add("assets/strawberry.png");
-
-    selectableFruitNames = <String>[" "];
-    selectableFruitNames.clear();
-
-    selectableFruitNames.add("apple");
-    selectableFruitNames.add("banana");
-    selectableFruitNames.add("pear");
-    selectableFruitNames.add("pineapple");
-    selectableFruitNames.add("strawberry");
-
     return "Success!";
+  }
+
+  _changePhoto(int index) async {
+    int _selectedValue = 1;
+    var alert = new AlertDialog(
+        title: new Text('Set selected image:'),
+        content: new SingleChildScrollView(
+          child: new ListBody(children: <Widget>[
+            new FlatButton(
+                color: Theme.of(this.context).primaryColor,
+                child: const Text('Set image to watermellon.'),
+                onPressed: () {
+                  Navigator.of(this.context).pop();
+                  _updatePhotoAsset(index, "assets/watermellon.png");
+                }),
+          ]),
+        ));
+    showDialog(context: this.context, child: alert);
   }
 
   _updatePhotoAsset(int i, String asset) {
     setState(() {
+      //*** This is the problem area.  The photoAsset is changed, but it usually
+      //*** now goes blank on the device.
+      //***
+      //*** However, the text field does get updated with the appended x.
       fruitsList[i].fruitPhotoAsset = asset;
+      fruitsList[i].fruitName += 'x';
+      print("photo asset $i updated to: $asset");
     });
   }
 
@@ -151,104 +144,35 @@ class ItemsSelectState extends State<ItemsSelect> with RouteAware {
                     itemBuilder: (BuildContext context, int index) {
                       return new Card(
                           child: new Container(
-                        color: Colors.red.shade100,
-                        height: 60.0,
-                        child: new ListViewFruitItem.fruitListSelectItem(
-                          formkey: _formKey,
-                          fruitsList: fruitsList[index],
-                          onPhotoChange: (String photoAsset) {
-                            setState(() {
-                              fruitsList[index].fruitName = fruitsList[index].fruitName;
-                              fruitsList[index].fruitPhotoAsset = photoAsset;
-                              _updatePhotoAsset(index, photoAsset);
-                            });
-                          },
-                          contextPassed: context,
-                        ),
-                      ));
-                    }))
+                              color: Colors.red.shade100,
+                              height: 60.0,
+                              child: new ListTile(
+                                trailing: new Container(
+                                  child: new Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: <Widget>[
+                                      new GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _changePhoto(index);
+                                          });
+                                        },
+                                        child: new Image.asset(
+                                          fruitsList[index].fruitPhotoAsset,
+                                          //*** this photo should get changed by onTap, but doesn't
+                                          width: 55.0,
+                                          height: 55.0,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                title: new Text('${fruitsList[index].fruitName}', style: new TextStyle(fontWeight: FontWeight.bold)),
+                                //*** while this text does get updated by the above onTap
+                              )));
+                    })),
           ])),
-    );
-  }
-}
-
-class ListViewFruitItem extends StatefulWidget {
-  ListViewFruitItem.fruitListSelectItem(
-      {Key key, @required this.formkey, @required this.fruitsList, @required this.onPhotoChange, this.contextPassed})
-      : super(key: key);
-
-  final GlobalKey<FormState> formkey;
-  final FruitList fruitsList;
-  final BannerPhotoCallback onPhotoChange;
-  final BuildContext contextPassed;
-
-  ListViewFruitItemState createState() => new ListViewFruitItemState();
-}
-
-class ListViewFruitItemState extends State<ListViewFruitItem> {
-  _handleItemLocation() async {
-    int _selectedValue = 1;
-    var alert = new AlertDialog(
-        title: new Text('Select a new image:'),
-        content: new SingleChildScrollView(
-          child: new ListBody(children: <Widget>[
-            new Icon(
-              Icons.arrow_drop_up,
-              size: 68.0,
-              color: Colors.grey.shade200,
-            ),
-            new Row(children: <Widget>[
-              new Text("->"),
-              new ImagePicker.integer(
-                  initialValue: 1,
-                  minValue: 0,
-                  maxValue: 4,
-                  selectablePhotoAssets: selectableFruitPhotoAssets,
-                  selectableNames: selectableFruitNames,
-                  listViewWidth: 150.0,
-                  itemExtent: 50.0,
-                  onChanged: (newValue) {
-                    _selectedValue = newValue;
-                  }),
-              new Text("<-"),
-            ]),
-            new Icon(Icons.arrow_drop_down, size: 68.0, color: Colors.grey.shade200),
-            new FlatButton(
-                color: Theme.of(this.context).primaryColor,
-                child: const Text('Set'),
-                onPressed: () {
-                  Navigator.of(this.context).pop();
-                  widget.onPhotoChange(selectableFruitPhotoAssets[_selectedValue]);
-                }),
-          ]),
-        ));
-    showDialog(context: this.context, child: alert);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return new ListTile(
-      trailing: new Container(
-        child: new Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            new GestureDetector(
-              onTap: () {
-                setState(() {
-                  _handleItemLocation();
-                });
-              },
-              child: new Image.asset(
-                widget.fruitsList.fruitPhotoAsset,
-                width: 55.0,
-                height: 55.0,
-              ),
-            ),
-          ],
-        ),
-      ),
-      title: new Text('${widget.fruitsList.fruitName}', style: new TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }
